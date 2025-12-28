@@ -1,0 +1,7 @@
+# Core CLI Todo Application - Phase I
+#
+# This project uses Python 3.13+ standard library only.
+# No external dependencies are required.
+#
+# To run the application:
+#   python -m src.cli.main --help
