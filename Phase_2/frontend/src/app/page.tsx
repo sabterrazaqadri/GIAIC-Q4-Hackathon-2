@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import TodoForm from '@/components/TodoForm';
 import TodoList from '@/components/TodoList';
-import { Todo } from '@/types/todo';
+import { Todo, CreateTodoData } from '@/types/todo';
 import { fetchTodos, createTodo } from '@/services/api';
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
     loadTodos();
   }, []);
 
-  const handleCreateTodo = async (todoData: { title: string; description?: string; priority: string }) => {
+  const handleCreateTodo = async (todoData: CreateTodoData) => {
     try {
       const newTodo = await createTodo(todoData);
       setTodos([newTodo, ...todos]);
