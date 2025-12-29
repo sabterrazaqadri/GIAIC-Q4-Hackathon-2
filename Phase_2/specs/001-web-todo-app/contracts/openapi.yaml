@@ -1,0 +1,358 @@
+openapi: 3.1.0
+info:
+  title: Todo API
+  description: REST API for Full-Stack Web Todo Application
+  version: 1.0.0
+  contact:
+    name: Evolution of Todo
+    url: https://github.com/example/todo-app
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: todos
+    description: Todo item operations
+
+paths:
+  /todos:
+    get:
+      tags:
+        - todos
+      summary: List all todos
+      description: Retrieve a list of all todos, optionally filtered by completion status
+      operationId: listTodos
+      parameters:
+        - name: is_complete
+          in: query
+          schema:
+            type: boolean
+            nullable: true
+          description: Filter by completion status (null = all)
+      responses:
+        '200':
+          description: List of todos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TodoResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - todos
+      summary: Create a new todo
+      description: Create a new todo item with title, optional description, and priority
+      operationId: createTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoCreate'
+      responses:
+        '201':
+          description: Todo created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /todos/{id}:
+    get:
+      tags:
+        - todos
+      summary: Get a todo by ID
+      description: Retrieve a single todo item by its unique identifier
+      operationId: getTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the todo
+      responses:
+        '200':
+          description: Todo found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags:
+        - todos
+      summary: Update a todo (full)
+      description: Replace all fields of an existing todo
+      operationId: updateTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the todo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoUpdate'
+      responses:
+        '200':
+          description: Todo updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - todos
+      summary: Update a todo (partial)
+      description: Update specific fields of an existing todo
+      operationId: patchTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the todo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoUpdate'
+      responses:
+        '200':
+          description: Todo updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - todos
+      summary: Delete a todo
+      description: Permanently remove a todo from the database
+      operationId: deleteTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the todo
+      responses:
+        '204':
+          description: Todo deleted successfully (no content)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /todos/{id}/complete:
+    patch:
+      tags:
+        - todos
+      summary: Mark todo as complete
+      description: Toggle the completion status of a todo to complete
+      operationId: completeTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the todo
+      responses:
+        '200':
+          description: Todo marked as complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /todos/{id}/incomplete:
+    patch:
+      tags:
+        - todos
+      summary: Mark todo as incomplete
+      description: Toggle the completion status of a todo back to incomplete
+      operationId: reopenTodo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the todo
+      responses:
+        '200':
+          description: Todo marked as incomplete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    TodoPriority:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+      description: Priority level for the todo item
+      example: medium
+
+    TodoCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Short summary of the task (required)
+          example: Buy groceries
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Optional detailed description
+          example: Milk, eggs, bread, and cheese
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+
+    TodoUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Updated task summary
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Updated description
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+        is_complete:
+          type: boolean
+          description: Updated completion status
+
+    TodoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+        title:
+          type: string
+          description: Task summary
+          example: Buy groceries
+        description:
+          type: string
+          nullable: true
+          description: Detailed description
+          example: Milk, eggs, bread, and cheese
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+        is_complete:
+          type: boolean
+          description: Whether the todo is complete
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp of creation
+          example: 2025-12-28T10:00:00Z
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp of last update
+          example: 2025-12-28T10:30:00Z
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
+      required:
+        - detail
+
+  responses:
+    BadRequest:
+      description: Invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []
