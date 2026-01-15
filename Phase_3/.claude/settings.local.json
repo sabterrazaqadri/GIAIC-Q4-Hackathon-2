@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/setup-plan.ps1 -Json)",
+      "Bash(cat \"C:\\\\Users\\\\sabte\\\\OneDrive\\\\Desktop\\\\All About IT\\\\GIAIC Q4\\\\Hackathon 2\\\\specs\\\\001-conversational-todo\\\\plan.md\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType claude)",
+      "Bash(.specify/scripts/powershell/check-prerequisites.ps1 -Json)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3000/health)",
+      "Bash(python -m uvicorn main:app --port 3000 --reload)",
+      "Bash(curl -s -X POST http://127.0.0.1:3000/api/chatkit/session -H \"Content-Type: application/json\")",
+      "Bash(python -m json.tool)",
+      "Bash(npx vite)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5176/)",
+      "Bash(curl -s -X POST http://localhost:5176/api/chatkit/session -H \"Content-Type: application/json\")",
+      "Bash(npx vite --port 5173)",
+      "Bash(python -m uvicorn main:app --port 3000)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3000)",
+      "Bash(curl -s \"https://giaic-q4-hackathon-2.onrender.com/todos\")",
+      "Bash(curl -s \"https://giaic-q4-hackathon-2.onrender.com/api/todos\")",
+      "Bash(curl -X POST \"https://giaic-q4-hackathon-2.onrender.com/todos\" -H \"Content-Type: application/json\" -d \"{\"\"title\"\":\"\"Test Task\"\",\"\"description\"\":\"\"Test Description\"\",\"\"priority\"\":\"\"medium\"\"}\" -s)",
+      "Bash(python main.py)",
+      "Bash(curl -X POST http://127.0.0.1:3001/chat -H \"Content-Type: application/json\" -d \"{\"\"message\"\": \"\"show my tasks\"\"}\" -s)",
+      "Bash(curl -X POST http://127.0.0.1:3001/chat -H \"Content-Type: application/json\" -d \"{\"\"message\"\": \"\"delete task buy milk\"\"}\" -s)",
+      "Bash(curl -X POST http://127.0.0.1:3001/chat -H \"Content-Type: application/json\" -d \"{\"\"message\"\": \"\"delete task 4\"\"}\" -s)",
+      "Bash(taskkill /PID 3204 /F)",
+      "Bash(taskkill /PID 2160 /F)"
+    ]
+  }
+}
