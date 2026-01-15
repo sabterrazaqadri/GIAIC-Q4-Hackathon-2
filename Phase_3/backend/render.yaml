@@ -10,7 +10,7 @@ services:
     rootDir: Phase_3/backend
     envVars:
       - key: PYTHON_VERSION
-        value: 3.13
+        value: 3.13.0
       - key: PORT
         value: 10000
       - key: OPENAI_API_KEY
