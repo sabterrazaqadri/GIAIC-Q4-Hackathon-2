@@ -6,20 +6,15 @@ import sys
 # Set OpenAI API key from environment BEFORE any other imports
 os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY', '')
 
-# Add site-packages to path for openai-agents package
-site_packages = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-    '..', '..', '..',
-    'Users', 'sabte', 'AppData', 'Local', 'Programs', 'Python', 'Python313', 'Lib', 'site-packages'
-)
-if site_packages not in sys.path:
-    sys.path.insert(0, site_packages)
+# Removed hardcoded Windows site-packages path for Render deployment
+# Install 'swarm' package via requirements.txt instead
 
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
 # Import openai-agents package
-from agents import Agent, Runner, function_tool
+from swarm import Agent, Swarm
+Runner = Swarm  # Alias for compatibility
 
 # Import local modules
 from skills.todo_operations import (
