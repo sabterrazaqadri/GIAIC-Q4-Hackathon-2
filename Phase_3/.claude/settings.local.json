@@ -42,7 +42,8 @@
       "Bash(git commit -m \"Add PyJWT to requirements.txt to fix ModuleNotFoundError: No module named ''jwt''\")",
       "Bash(git commit -m \"Add database integration for persistent task storage\n\n- Create database connection module using asyncpg\n- Implement database operations for todo items\n- Update skills to use database instead of API client\n- Connect AI backend to Neon database for persistent storage\n- Initialize database connection on app startup\n\")",
       "Bash(git commit -m \"Fix database initialization to use FastAPI startup event\n\n- Use @app.on_event\\(''startup''\\) instead of blocking initialization\n- Properly handle async database initialization\n\")",
-      "Bash(git commit -m \"Fix app definition order in main.py\n\n- Define the FastAPI app before applying the startup event decorator\n- This resolves the NameError: name ''app'' is not defined\n\")"
+      "Bash(git commit -m \"Fix app definition order in main.py\n\n- Define the FastAPI app before applying the startup event decorator\n- This resolves the NameError: name ''app'' is not defined\n\")",
+      "Bash(git commit -m \"Add fallback mechanisms for database operations\n\n- Make database initialization optional if NEON_DATABASE_URL is not set\n- Add RuntimeError handling to all database operations\n- Provide graceful fallbacks when database is unavailable\n- Add NEON_DATABASE_URL environment variable to render.yaml\n\")"
     ]
   }
 }
