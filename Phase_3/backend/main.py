@@ -27,6 +27,13 @@ from utils.logging_config import logger
 import asyncio
 from db.database import init_db_pool
 
+# Initialize FastAPI app
+app = FastAPI(
+    title="AI-Powered Conversational Todo API",
+    description="Natural language interface for todo management powered by OpenAI Agents SDK",
+    version="2.0.0"  # Updated to reflect OpenAI Agents SDK integration
+)
+
 # Initialize the database connection pool
 async def init_database():
     try:
@@ -40,13 +47,6 @@ async def init_database():
 @app.on_event("startup")
 async def startup_event():
     await init_database()
-
-# Initialize FastAPI app
-app = FastAPI(
-    title="AI-Powered Conversational Todo API",
-    description="Natural language interface for todo management powered by OpenAI Agents SDK",
-    version="2.0.0"  # Updated to reflect OpenAI Agents SDK integration
-)
 
 # Configure CORS
 app.add_middleware(

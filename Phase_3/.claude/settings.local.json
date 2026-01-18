@@ -40,7 +40,8 @@
       "Bash(git commit -m \"Fix function_tool import: Create local function_tool decorator\n\n- The swarm package does not export function_tool\n- Created a local function_tool decorator to mark functions as tools\n- This should resolve ImportError: cannot import name ''function_tool'' from ''swarm''\n\")",
       "Bash(git commit -m \"Switch from Swarm to OpenAI API to resolve import issues\n\n- Replace Swarm library with direct OpenAI API usage\n- Create mock implementations to prevent import errors\n- Use OpenAI chat completions API with system instructions\n- Remove swarm dependency from requirements.txt\n\")",
       "Bash(git commit -m \"Add PyJWT to requirements.txt to fix ModuleNotFoundError: No module named ''jwt''\")",
-      "Bash(git commit -m \"Add database integration for persistent task storage\n\n- Create database connection module using asyncpg\n- Implement database operations for todo items\n- Update skills to use database instead of API client\n- Connect AI backend to Neon database for persistent storage\n- Initialize database connection on app startup\n\")"
+      "Bash(git commit -m \"Add database integration for persistent task storage\n\n- Create database connection module using asyncpg\n- Implement database operations for todo items\n- Update skills to use database instead of API client\n- Connect AI backend to Neon database for persistent storage\n- Initialize database connection on app startup\n\")",
+      "Bash(git commit -m \"Fix database initialization to use FastAPI startup event\n\n- Use @app.on_event\\(''startup''\\) instead of blocking initialization\n- Properly handle async database initialization\n\")"
     ]
   }
 }
