@@ -27,7 +27,11 @@
       "Bash(curl -X POST http://127.0.0.1:3001/chat -H \"Content-Type: application/json\" -d \"{\"\"message\"\": \"\"delete task 4\"\"}\" -s)",
       "Bash(taskkill /PID 3204 /F)",
       "Bash(taskkill /PID 2160 /F)",
-      "Bash(git add .)"
+      "Bash(git add .)",
+      "Bash(git commit -m \"Fix ModuleNotFoundError: agents -> swarm \\(OpenAI Swarm package\\)\n\n- Updated import in src/intelligence/agent.py to properly import function_tool from swarm\n- Fixed test_agent.py to use correct swarm import instead of old agents import\n- Resolves deployment failure on Render due to missing module\n\")",
+      "Bash(git push origin 001-minikube-k8s-deploy)",
+      "Bash(find . -name \"*.pyc\" -type f -delete)",
+      "Bash(find . -name \"__pycache__\" -type d -exec rm -rf {} +)"
     ]
   }
 }

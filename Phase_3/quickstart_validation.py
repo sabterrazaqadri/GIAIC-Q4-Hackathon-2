@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'backend', 'src'))
 
 from processors.command_processor import process_command, test_urdu_commands
 from skills.todo_operations import add_task, list_tasks, update_task, delete_task
-from agents.intent_classifier import classify_intent, classify_urdu_intent
+from intelligence.intent_classifier import classify_intent, classify_urdu_intent
 import json
 
 
