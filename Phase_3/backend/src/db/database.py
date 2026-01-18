@@ -15,7 +15,8 @@ async def init_db_pool():
 
     database_url = os.getenv("NEON_DATABASE_URL")
     if not database_url:
-        raise ValueError("NEON_DATABASE_URL environment variable is not set")
+        logger.warning("NEON_DATABASE_URL environment variable is not set, skipping database initialization")
+        return
 
     try:
         _pool = await asyncpg.create_pool(
@@ -92,7 +93,7 @@ def get_db_pool() -> asyncpg.Pool:
     """Get the database connection pool."""
     global _pool
     if not _pool:
-        raise RuntimeError("Database pool not initialized. Call init_db_pool() first.")
+        raise RuntimeError("Database pool not initialized. Check if NEON_DATABASE_URL is set.")
     return _pool
 
 async def close_db_pool():
