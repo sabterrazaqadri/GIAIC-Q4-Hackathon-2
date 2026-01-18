@@ -28,12 +28,18 @@ import asyncio
 from db.database import init_db_pool
 
 # Initialize the database connection pool
-try:
-    asyncio.run(init_db_pool())
-    logger.info("Database initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize database: {e}")
-    raise
+async def init_database():
+    try:
+        await init_db_pool()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    await init_database()
 
 # Initialize FastAPI app
 app = FastAPI(
