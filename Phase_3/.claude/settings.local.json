@@ -26,7 +26,8 @@
       "Bash(curl -X POST http://127.0.0.1:3001/chat -H \"Content-Type: application/json\" -d \"{\"\"message\"\": \"\"delete task buy milk\"\"}\" -s)",
       "Bash(curl -X POST http://127.0.0.1:3001/chat -H \"Content-Type: application/json\" -d \"{\"\"message\"\": \"\"delete task 4\"\"}\" -s)",
       "Bash(taskkill /PID 3204 /F)",
-      "Bash(taskkill /PID 2160 /F)"
+      "Bash(taskkill /PID 2160 /F)",
+      "Bash(git add .)"
     ]
   }
 }

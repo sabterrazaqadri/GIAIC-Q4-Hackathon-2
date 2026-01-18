@@ -3,7 +3,8 @@ os.environ['OPENAI_API_KEY'] = 'sk-proj-****************************************
 
 import sys
 sys.path.insert(0, 'C:/Users/sabte/AppData/Local/Programs/Python/Python313/Lib/site-packages')
-from agents import Agent, Runner, function_tool
+from swarm import Agent, Swarm, function_tool
+Runner = Swarm  # Alias for compatibility
 
 @function_tool
 def add_task(title: str) -> str:

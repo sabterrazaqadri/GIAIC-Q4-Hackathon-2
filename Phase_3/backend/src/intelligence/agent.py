@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
 # Import openai-agents package
-from swarm import Agent, Swarm
+from swarm import Agent, Swarm, function_tool
 Runner = Swarm  # Alias for compatibility
 
 # Import local modules
