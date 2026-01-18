@@ -46,7 +46,10 @@ async def init_database():
 # Initialize database on startup
 @app.on_event("startup")
 async def startup_event():
-    await init_database()
+    try:
+        await init_database()
+    except Exception as e:
+        logger.warning(f"Database initialization failed: {e}. Continuing without database support.")
 
 # Configure CORS
 app.add_middleware(
