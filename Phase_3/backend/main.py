@@ -23,38 +23,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from processors.command_processor import process_command
 from utils.logging_config import logger
 
-# Initialize database connection
-import asyncio
-from db.database import init_db_pool
-
 # Initialize FastAPI app
 app = FastAPI(
     title="AI-Powered Conversational Todo API",
     description="Natural language interface for todo management powered by OpenAI Agents SDK",
     version="2.0.0"  # Updated to reflect OpenAI Agents SDK integration
 )
-
-# Initialize the database connection pool
-async def init_database():
-    try:
-        await init_db_pool()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
-
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    try:
-        # Only initialize database if the environment variable is set
-        if os.getenv("NEON_DATABASE_URL"):
-            await init_database()
-            logger.info("Database initialized successfully")
-        else:
-            logger.info("NEON_DATABASE_URL not set, skipping database initialization")
-    except Exception as e:
-        logger.warning(f"Database initialization failed: {e}. Continuing without database support.")
 
 # Configure CORS
 app.add_middleware(
