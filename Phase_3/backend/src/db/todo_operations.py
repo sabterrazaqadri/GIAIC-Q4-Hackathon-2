@@ -12,9 +12,26 @@ async def add_task_db(title: str, description: Optional[str] = None,
     """Add a new task to the database."""
     from db.database import get_db_pool
 
-    try:
-        pool = get_db_pool()
+    pool = get_db_pool()
 
+    if pool is None:
+        # Handle case where database pool is not initialized
+        logger.warning(f"Database not available, simulating task addition: {title}")
+        # Return a simulated task with a temporary ID
+        import time
+        temp_id = int(time.time() * 1000)  # Use timestamp as temp ID
+        return {
+            "id": temp_id,
+            "title": title,
+            "description": description,
+            "status": status,
+            "priority": priority,
+            "due_date": due_date,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+    try:
         async with pool.acquire() as conn:
             query = """
                 INSERT INTO todos (title, description, status, priority, due_date)
@@ -31,22 +48,6 @@ async def add_task_db(title: str, description: Optional[str] = None,
 
             return task
 
-    except RuntimeError as e:
-        # Handle case where database pool is not initialized
-        logger.warning(f"Database not available, simulating task addition: {title}")
-        # Return a simulated task with a temporary ID
-        import time
-        temp_id = int(time.time() * 1000)  # Use timestamp as temp ID
-        return {
-            "id": temp_id,
-            "title": title,
-            "description": description,
-            "status": status,
-            "priority": priority,
-            "due_date": due_date,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
-        }
     except Exception as e:
         logger.error(f"Error adding task to database: {e}")
         raise
@@ -56,9 +57,14 @@ async def get_task_db(task_id: int) -> Optional[Dict[str, Any]]:
     """Get a specific task by ID."""
     from db.database import get_db_pool
 
-    try:
-        pool = get_db_pool()
+    pool = get_db_pool()
 
+    if pool is None:
+        # Handle case where database pool is not initialized
+        logger.warning(f"Database not available, simulating task retrieval: {task_id}")
+        return None
+
+    try:
         async with pool.acquire() as conn:
             query = "SELECT * FROM todos WHERE id = $1"
             record = await conn.fetchrow(query, task_id)
@@ -67,10 +73,6 @@ async def get_task_db(task_id: int) -> Optional[Dict[str, Any]]:
                 return dict(record)
             return None
 
-    except RuntimeError as e:
-        # Handle case where database pool is not initialized
-        logger.warning(f"Database not available, simulating task retrieval: {task_id}")
-        return None
     except Exception as e:
         logger.error(f"Error getting task {task_id} from database: {e}")
         raise
@@ -80,9 +82,14 @@ async def list_tasks_db(filters: Optional[Dict[str, Any]] = None) -> List[Dict[s
     """List tasks from the database with optional filters."""
     from db.database import get_db_pool
 
-    try:
-        pool = get_db_pool()
+    pool = get_db_pool()
 
+    if pool is None:
+        # Handle case where database pool is not initialized
+        logger.warning(f"Database not available, returning empty task list")
+        return []
+
+    try:
         async with pool.acquire() as conn:
             # Build query with optional filters
             query = "SELECT * FROM todos ORDER BY created_at DESC"
@@ -115,10 +122,6 @@ async def list_tasks_db(filters: Optional[Dict[str, Any]] = None) -> List[Dict[s
             logger.info(f"Retrieved {len(tasks)} tasks from database")
             return tasks
 
-    except RuntimeError as e:
-        # Handle case where database pool is not initialized
-        logger.warning(f"Database not available, returning empty task list")
-        return []
     except Exception as e:
         logger.error(f"Error listing tasks from database: {e}")
         raise
@@ -128,9 +131,14 @@ async def update_task_db(task_id: int, updates: Dict[str, Any]) -> Optional[Dict
     """Update a task in the database."""
     from db.database import get_db_pool
 
-    try:
-        pool = get_db_pool()
+    pool = get_db_pool()
 
+    if pool is None:
+        # Handle case where database pool is not initialized
+        logger.warning(f"Database not available, simulating task update: {task_id}")
+        return None
+
+    try:
         async with pool.acquire() as conn:
             # Build dynamic update query
             set_clauses = []
@@ -164,10 +172,6 @@ async def update_task_db(task_id: int, updates: Dict[str, Any]) -> Optional[Dict
                 return task
             return None
 
-    except RuntimeError as e:
-        # Handle case where database pool is not initialized
-        logger.warning(f"Database not available, simulating task update: {task_id}")
-        return None
     except Exception as e:
         logger.error(f"Error updating task {task_id} in database: {e}")
         raise
@@ -177,9 +181,14 @@ async def delete_task_db(task_id: int) -> bool:
     """Delete a task from the database."""
     from db.database import get_db_pool
 
-    try:
-        pool = get_db_pool()
+    pool = get_db_pool()
 
+    if pool is None:
+        # Handle case where database pool is not initialized
+        logger.warning(f"Database not available, simulating task deletion: {task_id}")
+        return False
+
+    try:
         async with pool.acquire() as conn:
             query = "DELETE FROM todos WHERE id = $1"
             result = await conn.execute(query, task_id)
@@ -195,10 +204,6 @@ async def delete_task_db(task_id: int) -> bool:
 
             return success
 
-    except RuntimeError as e:
-        # Handle case where database pool is not initialized
-        logger.warning(f"Database not available, simulating task deletion: {task_id}")
-        return False
     except Exception as e:
         logger.error(f"Error deleting task {task_id} from database: {e}")
         raise

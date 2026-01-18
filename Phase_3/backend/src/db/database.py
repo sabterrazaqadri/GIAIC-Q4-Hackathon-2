@@ -82,7 +82,8 @@ def get_db_pool() -> asyncpg.Pool:
     """Get the database connection pool."""
     global _pool
     if not _pool:
-        raise RuntimeError("Database pool not initialized. Check if NEON_DATABASE_URL is set.")
+        # Return None to indicate database is not available
+        return None
     return _pool
 
 async def close_db_pool():
