@@ -35,7 +35,8 @@
       "Bash(git commit -m \"Force redeployment: Add timestamp to render.yaml to trigger new build\n\n- This should force Render to pull latest code with the fixed imports\n- Fixes ModuleNotFoundError: No module named ''agents''\n\")",
       "Bash(git push origin 001-minikube-k8s-deploy --force)",
       "Bash(git commit -m \"Fix requirements: Change swarm to openai-swarm package\n\n- The swarm package should be openai-swarm for the OpenAI Swarm library\n- This fixes ModuleNotFoundError: No module named ''swarm''\n\")",
-      "Bash(git commit -m \"Revert to openai-swarm package name in requirements.txt\n\n- Correct package name for OpenAI Swarm library is openai-swarm\n- This should resolve ModuleNotFoundError: No module named ''swarm''\n\")"
+      "Bash(git commit -m \"Revert to openai-swarm package name in requirements.txt\n\n- Correct package name for OpenAI Swarm library is openai-swarm\n- This should resolve ModuleNotFoundError: No module named ''swarm''\n\")",
+      "Bash(git commit -m \"Install swarm from GitHub repository\n\n- Install OpenAI Swarm directly from GitHub to ensure correct package\n- Using git+https://github.com/openai/swarm.git\n\")"
     ]
   }
 }

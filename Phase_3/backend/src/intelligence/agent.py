@@ -13,8 +13,15 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
 # Import openai-agents package
-from swarm import Agent, Swarm, function_tool
+from swarm import Agent, Swarm
 Runner = Swarm  # Alias for compatibility
+
+# Define function_tool as a decorator for Swarm-compatible functions
+def function_tool(func):
+    """Decorator to mark a function as a tool for the Swarm agent."""
+    # In Swarm, functions can be used as tools directly
+    func.is_swarm_tool = True
+    return func
 
 # Import local modules
 from skills.todo_operations import (
