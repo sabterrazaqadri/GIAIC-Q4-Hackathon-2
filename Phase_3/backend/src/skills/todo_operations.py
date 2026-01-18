@@ -3,7 +3,7 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from utils.logging_config import logger, log_error
-from auth.auth_handler import todo_api_client
+# Removed API client - using database directly now
 from models.todo import TodoTask, TaskStatus
 from validators.task_validator import validate_new_task_data, validate_task_update_data
 
@@ -12,7 +12,7 @@ class AddTaskSkill:
     """Skill for adding new tasks."""
 
     @staticmethod
-    def execute(title: str, description: str = None, dueDate: str = None, priority: str = "medium") -> Dict[str, Any]:
+    async def execute(title: str, description: str = None, dueDate: str = None, priority: str = "medium") -> Dict[str, Any]:
         """
         Execute the add task skill.
 
@@ -31,33 +31,31 @@ class AddTaskSkill:
             # Validate the task data before processing
             validate_new_task_data(title, description, "pending", dueDate)
 
-            # Prepare the todo data according to the Phase II API schema
-            todo_data = {
-                "title": title,
-                "description": description,
-                "priority": priority  # Use provided priority
-            }
+            # Import database operations
+            from db.todo_operations import add_task_db
 
-            # Add dueDate if provided (we'll store it in description if needed)
-            if dueDate:
-                if description:
-                    todo_data["description"] = f"{description} (Due: {dueDate})"
-                else:
-                    todo_data["description"] = f"Due: {dueDate}"
+            # Prepare the todo data according to the database schema
+            priority_level = priority.lower() if priority.lower() in ["low", "medium", "high"] else "medium"
 
-            # Call the Phase II API to create the task
-            result = todo_api_client.create_todo(todo_data)
+            # Add task to database
+            result = await add_task_db(
+                title=title,
+                description=description,
+                status="pending",  # Default to pending when creating
+                priority=priority_level,
+                due_date=dueDate
+            )
 
             # Transform the response to match our data model
             transformed_result = {
                 "id": str(result.get("id", "")),
                 "title": result.get("title", ""),
                 "description": result.get("description"),
-                "status": "pending",  # Default to pending when creating
-                "dueDate": dueDate,
+                "status": result.get("status", "pending"),
+                "dueDate": result.get("due_date"),
                 "createdAt": result.get("created_at", ""),
                 "updatedAt": result.get("updated_at", ""),
-                "userId": result.get("userId", "")  # This might not be in Phase II model
+                "priority": result.get("priority", "medium")
             }
 
             logger.info(f"Successfully added task with ID: {transformed_result['id']}")
@@ -65,14 +63,14 @@ class AddTaskSkill:
 
         except Exception as e:
             log_error(e, "AddTaskSkill.execute")
-            raise e
+            raise
 
 
 class UpdateTaskSkill:
     """Skill for updating existing tasks."""
 
     @staticmethod
-    def execute(id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute the update task skill.
 
@@ -89,41 +87,49 @@ class UpdateTaskSkill:
             # Validate the update data before processing
             validate_task_update_data(updates)
 
-            # Map our data model to Phase II API schema
-            api_updates = {}
-            if "title" in updates:
-                api_updates["title"] = updates["title"]
-            if "description" in updates:
-                # Handle dueDate if present in updates
-                if "dueDate" in updates:
-                    due_date = updates["dueDate"]
-                    description = updates["description"] if "description" in updates else ""
-                    api_updates["description"] = f"{description} (Due: {due_date})" if description else f"Due: {due_date}"
-                else:
-                    api_updates["description"] = updates["description"]
-            if "status" in updates:
-                # Map our status to Phase II's is_complete field
-                status = updates["status"]
-                if status == "completed":
-                    api_updates["is_complete"] = True
-                elif status in ["pending", "in-progress"]:
-                    api_updates["is_complete"] = False
-            if "priority" in updates:
-                api_updates["priority"] = updates["priority"]
+            # Import database operations
+            from db.todo_operations import update_task_db
 
-            # Call the Phase II API to update the task
-            result = todo_api_client.update_todo(id, api_updates)
+            # Map our data model to database schema
+            db_updates = {}
+            if "title" in updates:
+                db_updates["title"] = updates["title"]
+            if "description" in updates:
+                db_updates["description"] = updates["description"]
+            if "status" in updates:
+                status = updates["status"]
+                # Normalize status values
+                if status.lower() in ["completed", "done", "finished"]:
+                    db_updates["status"] = "completed"
+                elif status.lower() in ["pending", "not started"]:
+                    db_updates["status"] = "pending"
+                elif status.lower() in ["in-progress", "in progress", "working on it"]:
+                    db_updates["status"] = "in-progress"
+                else:
+                    db_updates["status"] = status.lower()
+            if "priority" in updates:
+                priority = updates["priority"].lower()
+                if priority in ["low", "medium", "high"]:
+                    db_updates["priority"] = priority
+            if "dueDate" in updates:
+                db_updates["due_date"] = updates["dueDate"]
+
+            # Update task in database
+            result = await update_task_db(id, db_updates)
+
+            if not result:
+                raise ValueError(f"Task with ID {id} not found")
 
             # Transform the response to match our data model
             transformed_result = {
                 "id": str(result.get("id", "")),
                 "title": result.get("title", ""),
                 "description": result.get("description"),
-                "status": "completed" if result.get("is_complete", False) else "pending",
-                "dueDate": None,  # Phase II doesn't have dueDate field
+                "status": result.get("status", "pending"),
+                "dueDate": result.get("due_date"),
                 "createdAt": result.get("created_at", ""),
                 "updatedAt": result.get("updated_at", ""),
-                "userId": result.get("userId", "")  # This might not be in Phase II model
+                "priority": result.get("priority", "medium")
             }
 
             logger.info(f"Successfully updated task with ID: {transformed_result['id']}")
@@ -138,7 +144,7 @@ class DeleteTaskSkill:
     """Skill for deleting tasks."""
 
     @staticmethod
-    def execute(id: str) -> bool:
+    async def execute(id: str) -> bool:
         """
         Execute the delete task skill.
 
@@ -151,11 +157,18 @@ class DeleteTaskSkill:
         try:
             logger.info(f"Executing delete_task skill for task ID: {id}")
 
-            # Call the Phase II API to delete the task
-            todo_api_client.delete_todo(id)
+            # Import database operations
+            from db.todo_operations import delete_task_db
 
-            logger.info(f"Successfully deleted task with ID: {id}")
-            return True
+            # Delete task from database
+            success = await delete_task_db(int(id))
+
+            if success:
+                logger.info(f"Successfully deleted task with ID: {id}")
+            else:
+                logger.warning(f"Task with ID {id} not found for deletion")
+
+            return success
 
         except Exception as e:
             log_error(e, "DeleteTaskSkill.execute")
@@ -166,7 +179,7 @@ class ListTasksSkill:
     """Skill for listing tasks."""
 
     @staticmethod
-    def execute(filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    async def execute(filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """
         Execute the list tasks skill.
 
@@ -179,66 +192,38 @@ class ListTasksSkill:
         try:
             logger.info(f"Executing list_tasks skill with filters: {filters}")
 
-            # Prepare filters for the Phase II API
-            api_filters = {}
+            # Import database operations
+            from db.todo_operations import list_tasks_db
+
+            # Prepare filters for the database
+            db_filters = {}
             if filters:
-                # Map our filters to Phase II API filters
+                # Map our filters to database schema
                 if "status" in filters:
-                    # Map our status to Phase II's is_complete field
-                    if filters["status"] == "completed":
-                        api_filters["is_complete"] = True
-                    elif filters["status"] in ["pending", "in-progress"]:
-                        api_filters["is_complete"] = False
-                elif "is_complete" in filters:
-                    # If the filter is already in Phase II format
-                    api_filters["is_complete"] = filters["is_complete"]
+                    db_filters["status"] = filters["status"]
+                if "priority" in filters:
+                    db_filters["priority"] = filters["priority"]
+                if "search" in filters:
+                    db_filters["search"] = filters["search"]
 
-            # Call the Phase II API to list tasks
-            result = todo_api_client.list_todos(api_filters)
-
-            # The API returns a list of todos, but we need to handle the response format
-            if isinstance(result, list):
-                todos = result
-            elif isinstance(result, dict) and 'todos' in result:
-                todos = result['todos']
-            else:
-                todos = [result] if result else []
+            # Get tasks from database
+            result = await list_tasks_db(db_filters)
 
             # Transform the response to match our data model
             transformed_todos = []
-            for todo in todos:
-                # Determine the status based on is_complete field
-                status = "completed" if todo.get("is_complete", False) else "pending"
-
-                # For "in-progress" status, we need special handling since Phase II doesn't have this
-                # For now, we'll map tasks with certain keywords or characteristics to "in-progress"
-                # In a real implementation, you might have additional logic to determine this
-                if status == "pending":
-                    # Check if the task description or title suggests it's in progress
-                    title = todo.get("title", "").lower()
-                    description = (todo.get("description") or "").lower()
-                    if any(keyword in title or keyword in description for keyword in ["working on", "in progress", "started"]):
-                        status = "in-progress"
-
+            for task in result:
                 transformed_todo = {
-                    "id": str(todo.get("id", "")),
-                    "title": todo.get("title", ""),
-                    "description": todo.get("description"),
-                    "status": status,
-                    "dueDate": None,  # Phase II doesn't have dueDate field
-                    "createdAt": todo.get("created_at", ""),
-                    "updatedAt": todo.get("updated_at", ""),
-                    "userId": todo.get("userId", "")  # This might not be in Phase II model
+                    "id": str(task.get("id", "")),
+                    "title": task.get("title", ""),
+                    "description": task.get("description"),
+                    "status": task.get("status", "pending"),
+                    "dueDate": task.get("due_date"),  # Use due_date from database
+                    "createdAt": task.get("created_at", ""),
+                    "updatedAt": task.get("updated_at", ""),
+                    "priority": task.get("priority", "medium")
                 }
 
-                # Apply additional filtering on our end if needed
-                include_task = True
-                if filters:
-                    if "status" in filters and filters["status"] != transformed_todo["status"]:
-                        include_task = False
-
-                if include_task:
-                    transformed_todos.append(transformed_todo)
+                transformed_todos.append(transformed_todo)
 
             logger.info(f"Successfully listed {len(transformed_todos)} tasks")
             return transformed_todos
@@ -249,21 +234,21 @@ class ListTasksSkill:
 
 
 # Convenience functions that map to the skill classes
-def add_task(title: str, description: str = None, dueDate: str = None, priority: str = "medium") -> Dict[str, Any]:
+async def add_task(title: str, description: str = None, dueDate: str = None, priority: str = "medium") -> Dict[str, Any]:
     """Add a new task."""
-    return AddTaskSkill.execute(title, description, dueDate, priority)
+    return await AddTaskSkill.execute(title, description, dueDate, priority)
 
 
-def update_task(id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+async def update_task(id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
     """Update an existing task."""
-    return UpdateTaskSkill.execute(id, updates)
+    return await UpdateTaskSkill.execute(id, updates)
 
 
-def delete_task(id: str) -> bool:
+async def delete_task(id: str) -> bool:
     """Delete a task."""
-    return DeleteTaskSkill.execute(id)
+    return await DeleteTaskSkill.execute(id)
 
 
-def list_tasks(filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+async def list_tasks(filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
     """List tasks."""
-    return ListTasksSkill.execute(filters)
+    return await ListTasksSkill.execute(filters)

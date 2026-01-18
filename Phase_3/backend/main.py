@@ -23,6 +23,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from processors.command_processor import process_command
 from utils.logging_config import logger
 
+# Initialize database connection
+import asyncio
+from db.database import init_db_pool
+
+# Initialize the database connection pool
+try:
+    asyncio.run(init_db_pool())
+    logger.info("Database initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize database: {e}")
+    raise
+
 # Initialize FastAPI app
 app = FastAPI(
     title="AI-Powered Conversational Todo API",

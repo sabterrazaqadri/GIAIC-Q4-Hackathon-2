@@ -38,7 +38,8 @@
       "Bash(git commit -m \"Revert to openai-swarm package name in requirements.txt\n\n- Correct package name for OpenAI Swarm library is openai-swarm\n- This should resolve ModuleNotFoundError: No module named ''swarm''\n\")",
       "Bash(git commit -m \"Install swarm from GitHub repository\n\n- Install OpenAI Swarm directly from GitHub to ensure correct package\n- Using git+https://github.com/openai/swarm.git\n\")",
       "Bash(git commit -m \"Fix function_tool import: Create local function_tool decorator\n\n- The swarm package does not export function_tool\n- Created a local function_tool decorator to mark functions as tools\n- This should resolve ImportError: cannot import name ''function_tool'' from ''swarm''\n\")",
-      "Bash(git commit -m \"Switch from Swarm to OpenAI API to resolve import issues\n\n- Replace Swarm library with direct OpenAI API usage\n- Create mock implementations to prevent import errors\n- Use OpenAI chat completions API with system instructions\n- Remove swarm dependency from requirements.txt\n\")"
+      "Bash(git commit -m \"Switch from Swarm to OpenAI API to resolve import issues\n\n- Replace Swarm library with direct OpenAI API usage\n- Create mock implementations to prevent import errors\n- Use OpenAI chat completions API with system instructions\n- Remove swarm dependency from requirements.txt\n\")",
+      "Bash(git commit -m \"Add PyJWT to requirements.txt to fix ModuleNotFoundError: No module named ''jwt''\")"
     ]
   }
 }
