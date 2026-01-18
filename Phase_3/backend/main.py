@@ -47,7 +47,12 @@ async def init_database():
 @app.on_event("startup")
 async def startup_event():
     try:
-        await init_database()
+        # Only initialize database if the environment variable is set
+        if os.getenv("NEON_DATABASE_URL"):
+            await init_database()
+            logger.info("Database initialized successfully")
+        else:
+            logger.info("NEON_DATABASE_URL not set, skipping database initialization")
     except Exception as e:
         logger.warning(f"Database initialization failed: {e}. Continuing without database support.")
 
