@@ -218,7 +218,7 @@ async def test_connection():
 # These endpoints proxy requests to Phase 2 API to bypass CORS issues
 # Frontend requests to http://localhost:3001/todos/* are forwarded to Phase 2 API
 
-PHASE2_API_URL = os.getenv("PHASE2_API_URL", "https://giaic-q4-hackathon-2.onrender.com")
+PHASE2_API_URL = os.getenv("TODO_API_BASE_URL", "https://giaic-q4-hackathon-2-advance-ai-powered.onrender.com").rstrip("/")
 
 
 @app.get("/todos")
