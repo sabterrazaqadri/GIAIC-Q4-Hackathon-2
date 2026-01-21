@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from processors.command_processor import process_command
 from utils.logging_config import logger
+from db.database import init_db_pool, close_db_pool
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -38,6 +39,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Database lifecycle events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database connection on startup."""
+    logger.info("Starting up - initializing database connection...")
+    try:
+        await init_db_pool()
+        logger.info("Database connection initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        # Don't raise - allow app to start even without DB
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connection on shutdown."""
+    logger.info("Shutting down - closing database connection...")
+    await close_db_pool()
 
 
 # Request/Response Models

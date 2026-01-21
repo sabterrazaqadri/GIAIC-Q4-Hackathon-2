@@ -3,9 +3,38 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from utils.logging_config import logger, log_error
-from auth.auth_handler import todo_api_client
 from models.todo import TodoTask, TaskStatus
 from validators.task_validator import validate_new_task_data, validate_task_update_data
+import asyncio
+
+
+def run_async(coro):
+    """Helper to run async functions from sync context."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        # We're in an async context, run in a new thread
+        import concurrent.futures
+        def run_in_thread():
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return executor.submit(run_in_thread).result(timeout=30)
+    else:
+        # No running loop, safe to create one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
 
 class AddTaskSkill:
@@ -31,33 +60,27 @@ class AddTaskSkill:
             # Validate the task data before processing
             validate_new_task_data(title, description, "pending", dueDate)
 
-            # Prepare the todo data according to the Phase II API schema
-            todo_data = {
-                "title": title,
-                "description": description,
-                "priority": priority  # Use provided priority
-            }
+            # Use local Neon database
+            from db.todo_operations import add_task_db
 
-            # Add dueDate if provided (we'll store it in description if needed)
-            if dueDate:
-                if description:
-                    todo_data["description"] = f"{description} (Due: {dueDate})"
-                else:
-                    todo_data["description"] = f"Due: {dueDate}"
-
-            # Call the Phase II API to create the task
-            result = todo_api_client.create_todo(todo_data)
+            result = run_async(add_task_db(
+                title=title,
+                description=description,
+                status="pending",
+                priority=priority,
+                due_date=dueDate
+            ))
 
             # Transform the response to match our data model
             transformed_result = {
                 "id": str(result.get("id", "")),
                 "title": result.get("title", ""),
                 "description": result.get("description"),
-                "status": "pending",  # Default to pending when creating
+                "status": result.get("status", "pending"),
+                "priority": result.get("priority", priority),
                 "dueDate": dueDate,
-                "createdAt": result.get("created_at", ""),
-                "updatedAt": result.get("updated_at", ""),
-                "userId": result.get("userId", "")  # This might not be in Phase II model
+                "createdAt": str(result.get("created_at", "")),
+                "updatedAt": str(result.get("updated_at", "")),
             }
 
             logger.info(f"Successfully added task with ID: {transformed_result['id']}")
@@ -89,41 +112,37 @@ class UpdateTaskSkill:
             # Validate the update data before processing
             validate_task_update_data(updates)
 
-            # Map our data model to Phase II API schema
-            api_updates = {}
-            if "title" in updates:
-                api_updates["title"] = updates["title"]
-            if "description" in updates:
-                # Handle dueDate if present in updates
-                if "dueDate" in updates:
-                    due_date = updates["dueDate"]
-                    description = updates["description"] if "description" in updates else ""
-                    api_updates["description"] = f"{description} (Due: {due_date})" if description else f"Due: {due_date}"
-                else:
-                    api_updates["description"] = updates["description"]
-            if "status" in updates:
-                # Map our status to Phase II's is_complete field
-                status = updates["status"]
-                if status == "completed":
-                    api_updates["is_complete"] = True
-                elif status in ["pending", "in-progress"]:
-                    api_updates["is_complete"] = False
-            if "priority" in updates:
-                api_updates["priority"] = updates["priority"]
+            # Use local Neon database
+            from db.todo_operations import update_task_db
 
-            # Call the Phase II API to update the task
-            result = todo_api_client.update_todo(id, api_updates)
+            # Map our data model to database schema
+            db_updates = {}
+            if "title" in updates:
+                db_updates["title"] = updates["title"]
+            if "description" in updates:
+                db_updates["description"] = updates["description"]
+            if "status" in updates:
+                db_updates["status"] = updates["status"]
+            if "priority" in updates:
+                db_updates["priority"] = updates["priority"]
+            if "dueDate" in updates:
+                db_updates["due_date"] = updates["dueDate"]
+
+            result = run_async(update_task_db(int(id), db_updates))
+
+            if not result:
+                raise Exception(f"Task with ID {id} not found")
 
             # Transform the response to match our data model
             transformed_result = {
                 "id": str(result.get("id", "")),
                 "title": result.get("title", ""),
                 "description": result.get("description"),
-                "status": "completed" if result.get("is_complete", False) else "pending",
-                "dueDate": None,  # Phase II doesn't have dueDate field
-                "createdAt": result.get("created_at", ""),
-                "updatedAt": result.get("updated_at", ""),
-                "userId": result.get("userId", "")  # This might not be in Phase II model
+                "status": result.get("status", "pending"),
+                "priority": result.get("priority", "medium"),
+                "dueDate": str(result.get("due_date", "")) if result.get("due_date") else None,
+                "createdAt": str(result.get("created_at", "")),
+                "updatedAt": str(result.get("updated_at", "")),
             }
 
             logger.info(f"Successfully updated task with ID: {transformed_result['id']}")
@@ -151,8 +170,17 @@ class DeleteTaskSkill:
         try:
             logger.info(f"Executing delete_task skill for task ID: {id}")
 
-            # Call the Phase II API to delete the task
-            return todo_api_client.delete_todo(id)
+            # Use local Neon database
+            from db.todo_operations import delete_task_db
+
+            result = run_async(delete_task_db(int(id)))
+
+            if result:
+                logger.info(f"Successfully deleted task with ID: {id}")
+            else:
+                logger.warning(f"Task with ID {id} not found or already deleted")
+
+            return result
 
         except Exception as e:
             log_error(e, "DeleteTaskSkill.execute")
@@ -176,66 +204,25 @@ class ListTasksSkill:
         try:
             logger.info(f"Executing list_tasks skill with filters: {filters}")
 
-            # Prepare filters for the Phase II API
-            api_filters = {}
-            if filters:
-                # Map our filters to Phase II API filters
-                if "status" in filters:
-                    # Map our status to Phase II's is_complete field
-                    if filters["status"] == "completed":
-                        api_filters["is_complete"] = True
-                    elif filters["status"] in ["pending", "in-progress"]:
-                        api_filters["is_complete"] = False
-                elif "is_complete" in filters:
-                    # If the filter is already in Phase II format
-                    api_filters["is_complete"] = filters["is_complete"]
+            # Use local Neon database
+            from db.todo_operations import list_tasks_db
 
-            # Call the Phase II API to list tasks
-            result = todo_api_client.list_todos(api_filters)
-
-            # The API returns a list of todos, but we need to handle the response format
-            if isinstance(result, list):
-                todos = result
-            elif isinstance(result, dict) and 'todos' in result:
-                todos = result['todos']
-            else:
-                todos = [result] if result else []
+            todos = run_async(list_tasks_db(filters))
 
             # Transform the response to match our data model
             transformed_todos = []
             for todo in todos:
-                # Determine the status based on is_complete field
-                status = "completed" if todo.get("is_complete", False) else "pending"
-
-                # For "in-progress" status, we need special handling since Phase II doesn't have this
-                # For now, we'll map tasks with certain keywords or characteristics to "in-progress"
-                # In a real implementation, you might have additional logic to determine this
-                if status == "pending":
-                    # Check if the task description or title suggests it's in progress
-                    title = todo.get("title", "").lower()
-                    description = (todo.get("description") or "").lower()
-                    if any(keyword in title or keyword in description for keyword in ["working on", "in progress", "started"]):
-                        status = "in-progress"
-
                 transformed_todo = {
                     "id": str(todo.get("id", "")),
                     "title": todo.get("title", ""),
                     "description": todo.get("description"),
-                    "status": status,
-                    "dueDate": None,  # Phase II doesn't have dueDate field
-                    "createdAt": todo.get("created_at", ""),
-                    "updatedAt": todo.get("updated_at", ""),
-                    "userId": todo.get("userId", "")  # This might not be in Phase II model
+                    "status": todo.get("status", "pending"),
+                    "priority": todo.get("priority", "medium"),
+                    "dueDate": str(todo.get("due_date", "")) if todo.get("due_date") else None,
+                    "createdAt": str(todo.get("created_at", "")),
+                    "updatedAt": str(todo.get("updated_at", "")),
                 }
-
-                # Apply additional filtering on our end if needed
-                include_task = True
-                if filters:
-                    if "status" in filters and filters["status"] != transformed_todo["status"]:
-                        include_task = False
-
-                if include_task:
-                    transformed_todos.append(transformed_todo)
+                transformed_todos.append(transformed_todo)
 
             logger.info(f"Successfully listed {len(transformed_todos)} tasks")
             return transformed_todos

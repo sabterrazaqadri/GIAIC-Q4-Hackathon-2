@@ -20,9 +20,11 @@ def process_command(user_input: str, user_id: str = None) -> Dict[str, Any]:
     """
     try:
         logger.info(f"Processing command from user {user_id}: {user_input}")
+        print(f"DEBUG process_command: calling run_agent_sync with: {user_input}")
 
         # Use the OpenAI Agents SDK to process the command
         result = run_agent_sync(user_input)
+        print(f"DEBUG process_command: got result: {result}")
 
         if result.get("success"):
             return {

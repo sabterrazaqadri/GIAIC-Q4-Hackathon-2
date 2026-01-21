@@ -274,41 +274,30 @@ class TodoAgent:
 # Create the agent with instructions
 AGENT_INSTRUCTIONS = """You are a helpful conversational todo management assistant.
 
-You can help users manage their tasks through natural conversation. You understand both English and Urdu.
+You can help users manage their tasks through natural conversation. You understand English, Roman Urdu and Urdu.
 
 ## Your Capabilities:
-1. **Add tasks** - When user wants to create a new task, use the add_task tool
-2. **Update tasks** - When user wants to modify a task (mark complete, change title, etc.), use the update_task tool
-3. **Delete tasks** - When user wants to remove a task, use the delete_task tool (REQUIRES NUMERIC TASK ID)
-4. **List tasks** - When user wants to see their tasks, use the list_tasks tool
+1. **Add tasks** - use add_task tool
+2. **Update tasks** - use update_task tool (accepts task name OR ID directly)
+3. **Delete tasks** - use delete_task tool (accepts task name OR ID directly)
+4. **List tasks** - use list_tasks tool
 
-## Critical Workflow for Deletions and Updates:
-- If a user wants to delete or update a task by NAME, YOU MUST FIRST call list_tasks to get the numeric IDs
-- THEN use the numeric ID to call delete_task or update_task
-- DO NOT try to pass task names directly as IDs to delete_task or update_task
-- For example: User says "delete buy milk" -> You call list_tasks -> See that "buy milk" has ID 5 -> Call delete_task with ID "5"
+## IMPORTANT - Direct Task Operations:
+- Pass task NAMES directly to delete_task and update_task - the system looks up the ID automatically
+- Example: "delete buy milk" -> Call delete_task(task_id="buy milk")
+- Example: "mark groceries done" -> Call update_task(task_id="groceries", new_status="completed")
+- DO NOT call list_tasks first to get IDs - pass the task name directly!
 
 ## Priority Handling:
-- When adding a task, analyze the user's input to determine priority
-- HIGH PRIORITY: Keywords like "urgent", "asap", "important", "critical", "immediately", "emergency", "right now", "today", "deadline", "crucial", "must do"
-- MEDIUM PRIORITY: Normal tasks without priority indicators
-- LOW PRIORITY: Keywords like "eventually", "whenever", "later", "someday", "maybe", "possibly"
-- Set priority parameter as "high", "medium", or "low"
-- Examples: "Buy milk ASAP" -> priority="high", "Buy milk" -> priority="medium", "Buy milk eventually" -> priority="low"
+- HIGH: urgent, asap, important, critical, immediately
+- MEDIUM: normal tasks (default)
+- LOW: eventually, whenever, later, someday
 
 ## Guidelines:
-- Respond in the same language the user uses (English or Urdu)
-- Be concise and friendly
-- Confirm actions clearly (e.g., "Added task: buy milk")
-- If a command is unclear, ask for clarification
-- When listing tasks, show them with their numeric IDs
-- If a tool fails, explain the error to the user clearly
+- Respond in same language as user (English, Roman Urdu, or Urdu)
+- Be concise and confirm actions clearly
 
-## Example Responses:
-- English: "Added task: buy milk"
-- Urdu (when user speaks Urdu): "کام شامل کریں: دودھ خریدیں"
-
-Remember: Use the tools to interact with the todo system. Always call the appropriate tool based on what the user wants to do, and follow the critical workflow for deletions and updates."""
+Remember: For delete and update, pass the task name directly."""
 
 
 def create_todo_agent() -> Agent:
@@ -327,29 +316,155 @@ def create_todo_agent() -> Agent:
 
 
 async def run_agent(user_input: str) -> Dict[str, Any]:
-    """Run the todo agent with user input."""
-    agent = create_todo_agent()
-
+    """Run the todo agent with user input using OpenAI function calling."""
     try:
         logger.info(f"Running agent with input: {user_input}")
 
-        # Use the actual OpenAI API to process the request
         from openai import OpenAI
+        import json
         client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 
-        # Create a simple completion to simulate agent behavior
+        # Define the tools/functions for OpenAI
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "add_task",
+                    "description": "Add a new task to the todo list",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string", "description": "The title of the task"},
+                            "description": {"type": "string", "description": "Optional description of the task"},
+                            "due_date": {"type": "string", "description": "Optional due date in ISO format"},
+                            "priority": {"type": "string", "enum": ["low", "medium", "high"], "description": "Task priority"}
+                        },
+                        "required": ["title"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_tasks",
+                    "description": "List all tasks from the todo list",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "status_filter": {"type": "string", "enum": ["pending", "completed", "in-progress"], "description": "Filter tasks by status"}
+                        },
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "update_task",
+                    "description": "Update an existing task. You can pass either the task ID (number) or task name/title.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "task_id": {"type": "string", "description": "The task ID (number) OR task name/title. Example: '1' or 'buy milk'"},
+                            "new_title": {"type": "string", "description": "New title for the task"},
+                            "new_status": {"type": "string", "enum": ["pending", "completed", "in-progress"], "description": "New status for the task"}
+                        },
+                        "required": ["task_id"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "delete_task",
+                    "description": "Delete a task from the todo list. You can pass either the task ID (number) or the task name/title directly.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "task_id": {"type": "string", "description": "The task ID (number) OR task name/title to delete. Example: '1' or 'buy milk'"}
+                        },
+                        "required": ["task_id"]
+                    }
+                }
+            }
+        ]
+
+        # First API call with function calling
+        messages = [
+            {"role": "system", "content": AGENT_INSTRUCTIONS},
+            {"role": "user", "content": user_input}
+        ]
+
+        # Force tool usage for task-related commands
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # or gpt-4 if available
-            messages=[
-                {"role": "system", "content": AGENT_INSTRUCTIONS},
-                {"role": "user", "content": user_input}
-            ],
-            temperature=0.7
+            model="gpt-4o-mini",  # Better at function calling
+            messages=messages,
+            tools=tools,
+            tool_choice="required",  # Force tool usage
+            temperature=0.3  # Lower temperature for more consistent tool calls
         )
 
+        response_message = response.choices[0].message
+        print(f"DEBUG: OpenAI response - has tool_calls: {response_message.tool_calls is not None}, content: {response_message.content[:100] if response_message.content else 'None'}")
+        logger.info(f"OpenAI response - has tool_calls: {response_message.tool_calls is not None}, content: {response_message.content[:100] if response_message.content else 'None'}")
+
+        # Check if the model wants to call a function
+        if response_message.tool_calls:
+            print(f"DEBUG: Tool calls found: {len(response_message.tool_calls)}")
+            # Process each tool call
+            tool_results = []
+            for tool_call in response_message.tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+
+                print(f"DEBUG: Executing tool: {function_name} with args: {function_args}")
+                logger.info(f"Executing tool: {function_name} with args: {function_args}")
+
+                # Execute the appropriate function
+                if function_name == "add_task":
+                    result = TodoAgent.add_task(
+                        title=function_args.get("title"),
+                        description=function_args.get("description"),
+                        due_date=function_args.get("due_date"),
+                        priority=function_args.get("priority", "medium")
+                    )
+                elif function_name == "list_tasks":
+                    result = TodoAgent.list_tasks(
+                        status_filter=function_args.get("status_filter")
+                    )
+                elif function_name == "update_task":
+                    result = TodoAgent.update_task(
+                        task_id=function_args.get("task_id"),
+                        new_title=function_args.get("new_title"),
+                        new_status=function_args.get("new_status")
+                    )
+                elif function_name == "delete_task":
+                    result = TodoAgent.delete_task(
+                        task_id=function_args.get("task_id")
+                    )
+                else:
+                    result = {"success": False, "message": f"Unknown function: {function_name}"}
+
+                tool_results.append({
+                    "tool_call_id": tool_call.id,
+                    "result": result
+                })
+
+                logger.info(f"Tool {function_name} result: {result}")
+
+            # Return the result from the tool execution
+            if tool_results:
+                final_result = tool_results[0]["result"]
+                return {
+                    "success": final_result.success if hasattr(final_result, 'success') else True,
+                    "message": final_result.message if hasattr(final_result, 'message') else str(final_result),
+                    "data": final_result.model_dump() if hasattr(final_result, 'model_dump') else final_result
+                }
+
+        # If no function was called, return the text response
         return {
             "success": True,
-            "message": response.choices[0].message.content,
+            "message": response_message.content or "I'm here to help you manage your tasks. What would you like to do?",
             "raw_response": str(response)
         }
     except Exception as e:
@@ -363,6 +478,7 @@ async def run_agent(user_input: str) -> Dict[str, Any]:
 def run_agent_sync(user_input: str) -> Dict[str, Any]:
     """Synchronous wrapper for run_agent that handles both sync and async contexts."""
     import asyncio
+    print(f"DEBUG run_agent_sync called with: {user_input}")
 
     try:
         # Try to get the current running loop
