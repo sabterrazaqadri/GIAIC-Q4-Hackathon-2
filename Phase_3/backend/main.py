@@ -235,87 +235,114 @@ async def test_connection():
     }
 
 
-# ==================== Phase 2 API Proxy Endpoints ====================
-# These endpoints proxy requests to Phase 2 API to bypass CORS issues
-# Frontend requests to http://localhost:3001/todos/* are forwarded to Phase 2 API
+# ==================== Direct Database Endpoints ====================
+# These endpoints serve tasks directly from the local Neon PostgreSQL database
 
-PHASE2_API_URL = os.getenv("TODO_API_BASE_URL", "https://giaic-q4-hackathon-2-advance-ai-powered.onrender.com").rstrip("/")
+from db.todo_operations import list_tasks_db, get_task_db, update_task_db, delete_task_db, add_task_db
 
 
 @app.get("/todos")
 async def get_todos():
-    """Proxy GET /todos from Phase 2 API"""
+    """Get all todos from the database"""
     try:
-        logger.info(f"Proxying GET request to {PHASE2_API_URL}/todos")
-        response = requests.get(f"{PHASE2_API_URL}/todos", timeout=30)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.Timeout:
-        logger.error("Timeout proxying to Phase 2 API")
-        raise HTTPException(status_code=504, detail="Phase 2 API timeout")
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error proxying to Phase 2 API: {str(e)}")
-        raise HTTPException(status_code=502, detail=f"Phase 2 API error: {str(e)}")
+        logger.info("Fetching all todos from database")
+        tasks = await list_tasks_db()
+        # Transform to match frontend expected format
+        return [
+            {
+                "id": task.get("id"),
+                "title": task.get("title", ""),
+                "description": task.get("description"),
+                "status": task.get("status", "pending"),
+                "is_complete": task.get("status") == "completed",
+                "priority": task.get("priority", "medium"),
+                "created_at": str(task.get("created_at", "")),
+                "updated_at": str(task.get("updated_at", "")),
+            }
+            for task in tasks
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching todos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.get("/todos/{task_id}")
 async def get_todo(task_id: int):
-    """Proxy GET /todos/{id} from Phase 2 API"""
+    """Get a specific todo by ID"""
     try:
-        logger.info(f"Proxying GET request to {PHASE2_API_URL}/todos/{task_id}")
-        response = requests.get(f"{PHASE2_API_URL}/todos/{task_id}", timeout=30)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.Timeout:
-        logger.error("Timeout proxying to Phase 2 API")
-        raise HTTPException(status_code=504, detail="Phase 2 API timeout")
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error proxying to Phase 2 API: {str(e)}")
-        raise HTTPException(status_code=502, detail=f"Phase 2 API error: {str(e)}")
+        logger.info(f"Fetching todo {task_id} from database")
+        task = await get_task_db(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {
+            "id": task.get("id"),
+            "title": task.get("title", ""),
+            "description": task.get("description"),
+            "status": task.get("status", "pending"),
+            "is_complete": task.get("status") == "completed",
+            "priority": task.get("priority", "medium"),
+            "created_at": str(task.get("created_at", "")),
+            "updated_at": str(task.get("updated_at", "")),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching todo {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.put("/todos/{task_id}")
 async def update_todo(task_id: int, body: Dict[str, Any]):
-    """Proxy PUT /todos/{id} from Phase 2 API"""
+    """Update a todo by ID"""
     try:
-        logger.info(f"Proxying PUT request to {PHASE2_API_URL}/todos/{task_id} with body: {body}")
-        response = requests.put(
-            f"{PHASE2_API_URL}/todos/{task_id}",
-            json=body,
-            headers={"Content-Type": "application/json"},
-            timeout=30
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.Timeout:
-        logger.error("Timeout proxying to Phase 2 API")
-        raise HTTPException(status_code=504, detail="Phase 2 API timeout")
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error proxying to Phase 2 API: {str(e)}")
-        raise HTTPException(status_code=502, detail=f"Phase 2 API error: {str(e)}")
+        logger.info(f"Updating todo {task_id} with: {body}")
+        # Map frontend fields to database fields
+        updates = {}
+        if "title" in body:
+            updates["title"] = body["title"]
+        if "description" in body:
+            updates["description"] = body["description"]
+        if "status" in body:
+            updates["status"] = body["status"]
+        if "is_complete" in body:
+            updates["status"] = "completed" if body["is_complete"] else "pending"
+        if "priority" in body:
+            updates["priority"] = body["priority"]
+
+        task = await update_task_db(task_id, updates)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {
+            "id": task.get("id"),
+            "title": task.get("title", ""),
+            "description": task.get("description"),
+            "status": task.get("status", "pending"),
+            "is_complete": task.get("status") == "completed",
+            "priority": task.get("priority", "medium"),
+            "created_at": str(task.get("created_at", "")),
+            "updated_at": str(task.get("updated_at", "")),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating todo {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.delete("/todos/{task_id}")
 async def delete_todo(task_id: int):
-    """Proxy DELETE /todos/{id} from Phase 2 API"""
+    """Delete a todo by ID"""
     try:
-        logger.info(f"Proxying DELETE request to {PHASE2_API_URL}/todos/{task_id}")
-        response = requests.delete(
-            f"{PHASE2_API_URL}/todos/{task_id}",
-            timeout=30
-        )
-        # Accept both 200 and 204 as success
-        if response.status_code in [200, 204]:
-            if response.status_code == 204:
-                return {"status": "deleted"}
-            return response.json()
-        response.raise_for_status()
-    except requests.exceptions.Timeout:
-        logger.error("Timeout proxying to Phase 2 API")
-        raise HTTPException(status_code=504, detail="Phase 2 API timeout")
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error proxying to Phase 2 API: {str(e)}")
-        raise HTTPException(status_code=502, detail=f"Phase 2 API error: {str(e)}")
+        logger.info(f"Deleting todo {task_id} from database")
+        success = await delete_task_db(task_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"status": "deleted", "id": task_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting todo {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 if __name__ == "__main__":
